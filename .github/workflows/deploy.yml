@@ -23,6 +23,9 @@ jobs:
       - run: npm ci --ignore-scripts
       - run: npm run typecheck
       - run: npm run test:unit
+      # Perimeter tests on the Workers runtime: the only tests that exercise the real
+      # OAuthProvider wiring (a misconfigured provider fails every request).
+      - run: npm run test:workers
       # CLOUDFLARE_API_TOKEN must be scoped to: Workers Scripts:Edit, Workers KV Storage:Edit,
       # for this account only. Never use a Global API Key.
       - run: npx wrangler deploy
