@@ -97,6 +97,7 @@ empty (Claude registers itself). Approve the GitHub login. On mobile the connect
   Test with Claude Code (`claude mcp add --transport http oura http://localhost:8787/mcp`) or `npx mcp-remote`.
 
 ## Tests
+CI runs every suite on Linux (Node 22) and on Windows (Node 24).
 - `npm run test:unit` — dependency-free core (crypto, vault concurrency, validation, redaction, shaping). Runs on plain Node.
 - `npm run test:workers` — on the Workers runtime, with the real OAuth provider, Durable Object, KV and MCP handler;
   only GitHub and Oura are faked (any other outbound request fails the test):

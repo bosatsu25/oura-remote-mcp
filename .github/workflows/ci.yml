@@ -15,8 +15,19 @@ concurrency:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
+    name: test (${{ matrix.os }}, node ${{ matrix.node }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Lowest supported major on Linux (the deploy job uses the same).
+          - os: ubuntu-latest
+            node: 22
+          # The owner develops on Windows with Node 24 / npm 11.
+          - os: windows-latest
+            node: 24
     steps:
       # SECURITY.md: pin these to commit SHAs (Dependabot keeps them current).
       - uses: actions/checkout@v7
@@ -24,7 +35,7 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-node@v7
         with:
-          node-version: 22
+          node-version: ${{ matrix.node }}
           cache: npm
       - run: npm ci --ignore-scripts
       - run: npm run typecheck
