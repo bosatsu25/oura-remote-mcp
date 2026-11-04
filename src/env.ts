@@ -1,4 +1,5 @@
 import type { OAuthHelpers } from "@cloudflare/workers-oauth-provider";
+import type { OuraTokenVault } from "./do/token-vault";
 
 /** Bindings and configuration available to the Worker. */
 export interface Env {
@@ -17,7 +18,7 @@ export interface Env {
 
   // --- bindings ---
   OAUTH_KV: KVNamespace;
-  TOKEN_VAULT: DurableObjectNamespace;
+  TOKEN_VAULT: DurableObjectNamespace<OuraTokenVault>;
   RATE_LIMITER: { limit(opts: { key: string }): Promise<{ success: boolean }> };
   /** Injected by workers-oauth-provider in single-worker mode. */
   OAUTH_PROVIDER: OAuthHelpers;

@@ -25,11 +25,12 @@
     "zod": "^4.2.0"
   },
   "devDependencies": {
-    "@cloudflare/vitest-pool-workers": "^0.22.0",
+    "@cloudflare/vitest-plugin": "^1.5.1",
     "@cloudflare/workers-types": "^5.20261103.1",
+    "@types/node": "^22.19.0",
     "tsx": "^4.19.0",
     "typescript": "^5.9.0",
-    "vitest": "^4.1.0",
+    "vitest": "^4.1.12",
     "wrangler": "^4.157.0"
   }
 }

@@ -1,11 +1,11 @@
 /**
- * WebCrypto helpers. Works in Cloudflare Workers and Node >= 20 (globalThis.crypto).
+ * WebCrypto helpers. Works in Cloudflare Workers and Node >= 20 (global `crypto`).
  *
  * Token encryption: AES-256-GCM, random 96-bit IV per encryption, AAD bound to a
  * version label so ciphertext cannot be replayed into a different slot/version.
  */
 
-const subtle = globalThis.crypto.subtle;
+const subtle = crypto.subtle;
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
 
@@ -13,7 +13,7 @@ export type Bytes = Uint8Array<ArrayBuffer>;
 
 export function randomBytes(length: number): Bytes {
   const out = new Uint8Array(new ArrayBuffer(length));
-  globalThis.crypto.getRandomValues(out);
+  crypto.getRandomValues(out);
   return out;
 }
 

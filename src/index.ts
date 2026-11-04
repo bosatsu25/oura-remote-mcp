@@ -41,15 +41,14 @@ function buildProvider(env: Env) {
     tokenEndpoint: "/oauth/token",
     clientRegistrationEndpoint: "/oauth/register",
     scopesSupported: [MCP_SCOPE_READ],
+    // Published as the protected resource metadata's scopes_supported (1.x rejects setting both).
     requiredScopes: [MCP_SCOPE_READ],
     resourceMetadata: {
       resource,
       authorization_servers: [base],
-      scopes_supported: [MCP_SCOPE_READ],
       resource_name: "oura-remote-mcp",
     },
-    // Explicitly off: implicit flow is insecure and not needed by Claude.
-    allowImplicitFlow: false,
+    // Implicit flow: workers-oauth-provider 1.x no longer implements it at all (no opt-in to disable).
     // Claude Code (loopback) registers as a public client; keep DCR open but rate-limited.
     disallowPublicClientRegistration: false,
   });

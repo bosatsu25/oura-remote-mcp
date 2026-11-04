@@ -51,7 +51,7 @@ describe("perimeter", () => {
     const killed = { ...env, KILL_SWITCH: "1" };
     const mod = await import("../../src/index");
     for (const path of ["/healthz", "/mcp", "/authorize", "/oura/connect"]) {
-      const res = await mod.default.fetch(new Request(`${BASE}${path}`), killed, { waitUntil() {}, passThroughOnException() {} } as ExecutionContext);
+      const res = await mod.default.fetch(new Request(`${BASE}${path}`), killed, { waitUntil() {}, passThroughOnException() {} } as unknown as ExecutionContext);
       expect(res.status, path).toBe(503);
     }
   });
