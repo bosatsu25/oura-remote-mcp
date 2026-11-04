@@ -6,7 +6,7 @@ updates:
       interval: weekly
     open-pull-requests-limit: 5
     ignore:
-      # Keep @types/node on the lowest supported Node major (engines: >=22, CI runs 22),
+      # Keep @types/node on the lowest supported Node major (engines floor is 22.18, CI runs 22),
       # so code using newer Node APIs fails typecheck instead of at runtime.
       - dependency-name: "@types/node"
         update-types: ["version-update:semver-major"]

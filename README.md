@@ -38,7 +38,7 @@ returned unless `include_all_periods: true`.
 ## Setup
 
 ### 0. Prerequisites
-Node ≥ 22, a Cloudflare account, a GitHub account, an Oura account with membership.
+Node 22.18+ or 24.11+ (23 and 25 are not supported by the toolchain), a Cloudflare account, a GitHub account, an Oura account with membership.
 
 ### 1. Clone and install
 ```bash
