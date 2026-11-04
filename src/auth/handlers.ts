@@ -43,6 +43,7 @@ export async function handleDefault(request: Request, env: Env): Promise<Respons
   const url = new URL(request.url);
   const route = `${request.method} ${url.pathname}`;
 
+  // `return await` (not bare `return`) so async rejections land in the catch below.
   try {
     switch (route) {
       case "GET /healthz":
@@ -50,15 +51,15 @@ export async function handleDefault(request: Request, env: Env): Promise<Respons
       case "GET /":
         return text(200, "oura-remote-mcp: private MCP endpoint at /mcp");
       case "GET /authorize":
-        return startMcpAuthorize(request, env);
+        return await startMcpAuthorize(request, env);
       case "GET /callback":
-        return githubCallback(request, env);
+        return await githubCallback(request, env);
       case "GET /oura/connect":
-        return startOuraLink(env);
+        return await startOuraLink(env);
       case "GET /oura/callback":
-        return ouraCallback(request, env);
+        return await ouraCallback(request, env);
       case "GET /oura/disconnect":
-        return startOuraDisconnect(env);
+        return await startOuraDisconnect(env);
       default:
         return text(404, "not found");
     }
@@ -83,7 +84,8 @@ async function startMcpAuthorize(request: Request, env: Env): Promise<Response> 
   // Throws AuthorizationError for unknown client / bad redirect / missing PKCE.
   const authRequest: AuthRequest = await env.OAUTH_PROVIDER.parseAuthRequest(request);
   const client = await env.OAUTH_PROVIDER.lookupClient(authRequest.clientId);
-  if (!client) throw new AuthorizationError("invalid_client", "unknown client");
+  // No redirectUri on the error: the handler renders it locally and never redirects.
+  if (!client) throw new AuthorizationError("unauthorized_client", { description: "unknown client" });
 
   const state = randomToken();
   await vault(env).putFlow(state, { kind: "mcp_authorize", authRequest });
@@ -106,9 +108,10 @@ async function githubCallback(request: Request, env: Env): Promise<Response> {
   if (flow.kind === "oura_unlink") return finishOuraDisconnect(env);
 
   if (flow.kind === "mcp_authorize") {
+    if (!flow.authRequest) return text(400, "expired or unknown state");
     const props: GrantProps = { userId: who.id, login: who.login };
     const { redirectTo } = await env.OAUTH_PROVIDER.completeAuthorization({
-      request: flow.authRequest as AuthRequest,
+      request: flow.authRequest,
       userId: String(who.id),
       metadata: { label: `GitHub:${who.login}` },
       scope: [MCP_SCOPE_READ],

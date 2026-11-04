@@ -7,7 +7,7 @@ updates:
     open-pull-requests-limit: 5
     groups:
       cloudflare:
-        patterns: ["@cloudflare/*", "wrangler", "agents"]
+        patterns: ["@cloudflare/*", "wrangler", "agents", "vitest"]
       mcp:
         patterns: ["@modelcontextprotocol/*"]
   - package-ecosystem: github-actions

@@ -6,6 +6,7 @@
  * other event from interleaving while a refresh is in flight.
  */
 
+import type { AuthRequest } from "@cloudflare/workers-oauth-provider";
 import { DurableObject } from "cloudflare:workers";
 import { FLOW_TTL_MS } from "../config";
 import { importAesKey } from "../core/crypto";
@@ -18,8 +19,8 @@ export type FlowKind = "mcp_authorize" | "oura_link" | "oura_unlink";
 export interface PendingFlow {
   kind: FlowKind;
   createdAt: number;
-  /** Serialized AuthRequest from workers-oauth-provider (mcp_authorize only). */
-  authRequest?: unknown;
+  /** AuthRequest from workers-oauth-provider (mcp_authorize only). Plain data, so it survives RPC. */
+  authRequest?: AuthRequest;
   /** PKCE verifier for the Oura leg (oura_link only). */
   codeVerifier?: string;
   /** GitHub identity verified at the start of the flow. */
@@ -100,6 +101,5 @@ export class OuraTokenVault extends DurableObject<Env> {
 
 /** Accessor for the single vault instance. */
 export function vault(env: Env): DurableObjectStub<OuraTokenVault> {
-  const id = env.TOKEN_VAULT.idFromName("primary");
-  return env.TOKEN_VAULT.get(id) as DurableObjectStub<OuraTokenVault>;
+  return env.TOKEN_VAULT.get(env.TOKEN_VAULT.idFromName("primary"));
 }

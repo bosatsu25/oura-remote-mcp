@@ -95,4 +95,5 @@ Private. All rights reserved.
 
 ## Dependency notes
 - `agents` requires `@modelcontextprotocol/client` as a **non-optional** peer even for server-only use; it is pinned to the exact version `agents` expects, together with `@modelcontextprotocol/server`.
-- `@cloudflare/vitest-pool-workers` pins its own `wrangler`/`miniflare`; keep root `wrangler` at the same major and let Dependabot's `cloudflare` group bump them together.
+- Workers tests use `@cloudflare/vitest-plugin` (the renamed, maintained successor of `@cloudflare/vitest-pool-workers`). It pins its own `wrangler`/`miniflare`; keep root `wrangler` on the same version so only one copy is installed, and let Dependabot's `cloudflare` group (which also covers `vitest`) bump them together.
+- `package-lock.json` is committed; install with `npm ci`. Resolving the tree from scratch with npm 10 (Node 22) can crash with `Cannot read properties of null (reading 'edgesOut')` (an npm arborist bug); regenerate the lockfile with npm 11 if needed.
