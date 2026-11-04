@@ -1,7 +1,12 @@
-# Copy to .dev.vars for local `wrangler dev`. NEVER commit .dev.vars.
-# Production values are set with `wrangler secret put <NAME>`.
+# Copy to .dev.vars for local `npm run dev`. NEVER commit .dev.vars.
+# Production values are set with `npx wrangler secret put <NAME>`.
 
-# GitHub OAuth App (identity gate). Callback URL: <PUBLIC_BASE_URL>/callback
+# Overrides of wrangler.jsonc vars for local dev.
+PUBLIC_BASE_URL=http://localhost:8787
+# Your numeric GitHub id: curl https://api.github.com/users/<login>  (field "id")
+ALLOWED_GITHUB_USER_ID=
+
+# GitHub OAuth App (identity gate). Use a separate dev app; callback URL: http://localhost:8787/callback
 GITHUB_CLIENT_ID=
 GITHUB_CLIENT_SECRET=
 

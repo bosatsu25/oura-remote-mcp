@@ -60,22 +60,30 @@ https://developer.ouraring.com/applications → New application.
 - Scopes used: `daily`, `heartrate` (least privilege; nothing else is requested).
 
 ### 5. Cloudflare resources and secrets
+`wrangler` is a dev dependency, so run it through `npx` (works the same in PowerShell).
 ```bash
-wrangler kv namespace create OAUTH_KV      # paste the id into wrangler.jsonc
+npx wrangler login
+npx wrangler kv namespace create OAUTH_KV  # paste the id into wrangler.jsonc
 npm run keygen                             # prints a 32-byte base64 key
-wrangler secret put TOKEN_ENCRYPTION_KEY
-wrangler secret put GITHUB_CLIENT_ID
-wrangler secret put GITHUB_CLIENT_SECRET
-wrangler secret put OURA_CLIENT_ID
-wrangler secret put OURA_CLIENT_SECRET
+npx wrangler secret put TOKEN_ENCRYPTION_KEY
+npx wrangler secret put GITHUB_CLIENT_ID
+npx wrangler secret put GITHUB_CLIENT_SECRET
+npx wrangler secret put OURA_CLIENT_ID
+npx wrangler secret put OURA_CLIENT_SECRET
 ```
 
-### 6. Deploy and link Oura
+### 6. Deploy, verify, link Oura
 ```bash
 npm run typecheck && npm test
 npm run deploy
 ```
-Open `<base>/oura/connect` → GitHub login → Oura consent. Done once.
+Verify the deployment before connecting anything (on Windows use `curl.exe`):
+```bash
+curl -i <base>/healthz                                     # 200 "ok"
+curl <base>/.well-known/oauth-protected-resource/mcp       # "resource": "<base>/mcp"
+curl -i -X POST <base>/mcp                                 # 401 + WWW-Authenticate: Bearer ... resource_metadata=...
+```
+Then open `<base>/oura/connect` → GitHub login → Oura consent → "Oura account linked". Done once.
 
 ### 7. Connect Claude
 claude.ai → Settings → Connectors → *Add custom connector* → URL `<base>/mcp`. Leave client id/secret
@@ -84,11 +92,19 @@ empty (Claude registers itself). Approve the GitHub login. On mobile the connect
 ## Operations
 - Kill switch, rotation, incident steps: [docs/runbook.md](docs/runbook.md)
 - Threat model and controls: [SECURITY.md](SECURITY.md)
-- Local dev: copy `.dev.vars.example` → `.dev.vars`, then `npm run dev` (use `mcp-remote` or Claude Code to test).
+- Local dev: copy `.dev.vars.example` → `.dev.vars` and fill it in (it sets `PUBLIC_BASE_URL=http://localhost:8787`
+  and needs a *separate* GitHub OAuth App whose callback is `http://localhost:8787/callback`), then `npm run dev`.
+  Test with Claude Code (`claude mcp add --transport http oura http://localhost:8787/mcp`) or `npx mcp-remote`.
 
 ## Tests
 - `npm run test:unit` — dependency-free core (crypto, vault concurrency, validation, redaction, shaping). Runs on plain Node.
-- `npm run test:workers` — perimeter tests on the Workers runtime (401, metadata, kill switch, open-redirect, DO single-use state).
+- `npm run test:workers` — on the Workers runtime, with the real OAuth provider, Durable Object, KV and MCP handler;
+  only GitHub and Oura are faked (any other outbound request fails the test):
+  - `security.test.ts` — perimeter: 401, metadata, kill switch, open redirect, single-use flow state.
+  - `e2e.test.ts` — the whole product: DCR → GitHub login → PKCE token → MCP tools; Oura link with PKCE verified;
+    all five tools return shaped data; access-token refresh; disconnect; allow-list and replay refusals.
+  - `mcp-client.test.ts` — the official MCP client SDK discovers, registers, authorizes and calls tools on its own,
+    the way a remote MCP client such as Claude does.
 
 ## License
 Private. All rights reserved.

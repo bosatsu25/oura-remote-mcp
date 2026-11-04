@@ -179,8 +179,8 @@ async function startOuraDisconnect(env: Env): Promise<Response> {
 async function finishOuraDisconnect(env: Env): Promise<Response> {
   const v = vault(env);
   try {
-    const token = await v.getAccessToken();
-    await revokeOuraToken(fetch, token);
+    const result = await v.getAccessToken();
+    if (result.ok) await revokeOuraToken(fetch, result.token);
   } catch {
     /* not linked, or refresh impossible: local deletion still proceeds */
   }

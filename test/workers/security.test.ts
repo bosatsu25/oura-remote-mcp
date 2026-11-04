@@ -92,11 +92,13 @@ describe("token vault durable object", () => {
     const id = env.TOKEN_VAULT.idFromName("primary");
     const stub = env.TOKEN_VAULT.get(id);
     await stub.storeTokens({ accessToken: "AT", refreshToken: "RT", expiresAt: Date.now() + 3_600_000, scope: "daily" });
-    expect(await stub.getAccessToken()).toBe("AT");
+    expect(await stub.getAccessToken()).toEqual({ ok: true, token: "AT" });
     const status = await stub.status();
     expect(status.linked).toBe(true);
     await stub.clearTokens();
     expect((await stub.status()).linked).toBe(false);
+    // Expected failures cross the RPC boundary as data, with their code intact.
+    expect(await stub.getAccessToken()).toEqual({ ok: false, code: "not_linked" });
   });
 
   it("flow state is single-use and kind-checked", async () => {
