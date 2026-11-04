@@ -50,11 +50,13 @@ jobs:
   codeql:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    # Code scanning is not enabled for this private repository, so results are not
+    # uploaded. Instead the job fails on any finding and prints each as an annotation.
     permissions:
       contents: read
       # Required by codeql-action in private repositories (reads the workflow run).
       actions: read
-      security-events: write
+      security-events: read
     steps:
       - uses: actions/checkout@v4
         with:
@@ -63,6 +65,22 @@ jobs:
         with:
           languages: javascript-typescript
       - uses: github/codeql-action/analyze@v3
+        with:
+          upload: never
+          output: codeql-results
+      - name: Fail on CodeQL findings
+        run: |
+          shopt -s nullglob
+          files=(codeql-results/*.sarif)
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "::error::CodeQL produced no SARIF output"
+            exit 1
+          fi
+          jq -r -s '.[].runs[].results[]? |
+            "::error file=\(.locations[0].physicalLocation.artifactLocation.uri // "unknown"),line=\(.locations[0].physicalLocation.region.startLine // 1)::\(.ruleId): \(.message.text | gsub("[\r\n]+"; " "))"' "${files[@]}"
+          count=$(jq -s '[.[].runs[].results[]?] | length' "${files[@]}")
+          echo "CodeQL findings: ${count}"
+          [ "${count}" -eq 0 ]
 
   audit:
     runs-on: ubuntu-latest
