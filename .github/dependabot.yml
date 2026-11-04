@@ -15,7 +15,15 @@ updates:
         patterns: ["@cloudflare/*", "wrangler", "agents", "vitest"]
       mcp:
         patterns: ["@modelcontextprotocol/*"]
+      # Remaining dev tooling (typescript, tsx, @types/node 22.x, ...): one PR per week.
+      # Majors stay separate so each one gets its own review.
+      dev-tooling:
+        dependency-type: development
+        update-types: ["minor", "patch"]
   - package-ecosystem: github-actions
     directory: "/"
     schedule:
       interval: weekly
+    groups:
+      actions:
+        patterns: ["*"]
