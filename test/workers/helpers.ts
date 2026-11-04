@@ -208,3 +208,130 @@ export async function linkOura(): Promise<void> {
   expect(done.status, await done.clone().text()).toBe(200);
   expect(await done.text()).toContain("Oura account linked");
 }
+
+// ---------- MCP client side ----------
+
+export interface Grant {
+  accessToken: string;
+  refreshToken: string;
+  clientId: string;
+}
+
+export async function registerClient(): Promise<string> {
+  const res = await call("/oauth/register", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      client_name: "Claude",
+      redirect_uris: [CLAUDE_CALLBACK],
+      grant_types: ["authorization_code", "refresh_token"],
+      response_types: ["code"],
+      token_endpoint_auth_method: "none",
+    }),
+  });
+  expect(res.status, await res.clone().text()).toBe(201);
+  const body = (await res.json()) as { client_id: string };
+  expect(body.client_id).toBeTruthy();
+  return body.client_id;
+}
+
+/** Runs /authorize -> GitHub -> /callback and returns the /callback response (redirect to Claude, or an error). */
+export async function authorizeViaGitHub(clientId: string, verifier: string, clientState: string): Promise<Response> {
+  const q = new URLSearchParams({
+    response_type: "code",
+    client_id: clientId,
+    redirect_uri: CLAUDE_CALLBACK,
+    scope: "oura:read",
+    state: clientState,
+    code_challenge: await s256(verifier),
+    code_challenge_method: "S256",
+    resource: `${BASE}/mcp`,
+  });
+  const start = await call(`/authorize?${q}`);
+  expect(start.status, await start.clone().text()).toBe(302);
+  const gh = location(start);
+  expect(gh.origin + gh.pathname).toBe("https://github.com/login/oauth/authorize");
+  expect(gh.searchParams.get("client_id")).toBe("gh-id");
+  expect(gh.searchParams.get("redirect_uri")).toBe(`${BASE}/callback`);
+  const state = gh.searchParams.get("state")!;
+  expect(state).toMatch(/^[A-Za-z0-9_-]{43}$/);
+  return call(`/callback?code=gh-code-1&state=${state}`);
+}
+
+export async function obtainGrant(): Promise<Grant> {
+  const clientId = await registerClient();
+  const verifier = b64url(crypto.getRandomValues(new Uint8Array(48)));
+  const back = await authorizeViaGitHub(clientId, verifier, "claude-state-1");
+  expect(back.status, await back.clone().text()).toBe(302);
+  const cb = location(back);
+  expect(cb.origin + cb.pathname).toBe(CLAUDE_CALLBACK);
+  expect(cb.searchParams.get("state")).toBe("claude-state-1");
+  const code = cb.searchParams.get("code")!;
+  expect(code).toBeTruthy();
+
+  const tok = await call("/oauth/token", {
+    method: "POST",
+    headers: { "content-type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      grant_type: "authorization_code",
+      code,
+      redirect_uri: CLAUDE_CALLBACK,
+      client_id: clientId,
+      code_verifier: verifier,
+      resource: `${BASE}/mcp`,
+    }),
+  });
+  expect(tok.status, await tok.clone().text()).toBe(200);
+  const t = (await tok.json()) as { access_token: string; refresh_token: string; token_type: string; scope: string };
+  expect(t.token_type.toLowerCase()).toBe("bearer");
+  expect(t.scope).toContain("oura:read");
+  return { accessToken: t.access_token, refreshToken: t.refresh_token, clientId };
+}
+
+let rpcId = 0;
+
+/** One JSON-RPC request over Streamable HTTP; accepts either a JSON or an SSE response. */
+export async function mcp(grant: Grant, method: string, params: Record<string, unknown> = {}): Promise<any> {
+  const res = await call("/mcp", {
+    method: "POST",
+    headers: {
+      authorization: `Bearer ${grant.accessToken}`,
+      "content-type": "application/json",
+      accept: "application/json, text/event-stream",
+      "mcp-protocol-version": "2025-06-18",
+    },
+    body: JSON.stringify({ jsonrpc: "2.0", id: ++rpcId, method, params }),
+  });
+  const text = await res.text();
+  expect(res.status, text).toBe(200);
+  const payload = res.headers.get("content-type")?.includes("text/event-stream")
+    ? text
+        .split("\n")
+        .filter((l) => l.startsWith("data:"))
+        .map((l) => l.slice(5).trim())
+        .find((l) => l.includes('"id"'))
+    : text;
+  const msg = JSON.parse(payload ?? "null");
+  expect(msg?.error, JSON.stringify(msg?.error)).toBeUndefined();
+  return msg.result;
+}
+
+export async function initialize(grant: Grant): Promise<any> {
+  return mcp(grant, "initialize", {
+    protocolVersion: "2025-06-18",
+    capabilities: {},
+    clientInfo: { name: "e2e", version: "1.0.0" },
+  });
+}
+
+export async function tool(grant: Grant, name: string, args: Record<string, unknown> = {}): Promise<{ isError: boolean; text: string; data: any }> {
+  const result = await mcp(grant, "tools/call", { name, arguments: args });
+  const text = (result.content as Array<{ type: string; text: string }>).map((c) => c.text).join("");
+  let data: unknown;
+  try {
+    data = JSON.parse(text);
+  } catch {
+    data = undefined;
+  }
+  return { isError: result.isError === true, text, data };
+}

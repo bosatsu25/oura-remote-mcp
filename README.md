@@ -106,6 +106,10 @@ CI runs every suite on Linux (Node 22) and on Windows (Node 24).
     all five tools return shaped data; access-token refresh; disconnect; allow-list and replay refusals.
   - `mcp-client.test.ts` — the official MCP client SDK discovers, registers, authorizes and calls tools on its own,
     the way a remote MCP client such as Claude does.
+  - `hardening.test.ts` — the remaining SECURITY.md controls: per-IP rate limit, Host pinning and foreign-Origin
+    refusal, tools re-checking the grant identity, flow-state expiry and GC, no plaintext token in DO storage,
+    and no secret in any log line across a full run. Each was checked by breaking the control and watching the
+    test fail.
 
 ## License
 Private. All rights reserved.

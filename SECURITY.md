@@ -22,8 +22,9 @@ under a minute (see `docs/runbook.md`).
 ### T1. Anyone on the internet calls `/mcp`
 - Bearer token required; validated by workers-oauth-provider with RFC 8707 audience check
   (`resourceMetadata.resource = <base>/mcp`). — `src/index.ts`, test `perimeter › 401`
-- Tools re-verify the grant identity against the allow-list on every call (defense in depth). — `src/mcp/server.ts requireOwner`
-- Per-IP rate limit on `/mcp`, `/oauth/*`, `/authorize`, `/callback`, `/oura/*`. — `wrangler.jsonc ratelimits`
+- Tools re-verify the grant identity against the allow-list on every call (defense in depth), so a grant
+  issued before the allow-list changed stops working. — `src/mcp/server.ts requireOwner`, tests `refuses a grant whose identity is no longer allow-listed`, `refuses grants with a different id, a different login, or no identity at all`
+- Per-IP rate limit (60 / 60 s, shared across) `/mcp`, `/oauth/*`, `/authorize`, `/callback`, `/oura/*`; `/healthz` is exempt. — `wrangler.jsonc ratelimits`, test `limits each client IP to 60 requests per minute`
 
 ### T2. Someone else tries to authorize their own Claude against this server
 - `/authorize` redirects to GitHub; completion requires the GitHub **numeric id** *and* login to match
@@ -34,7 +35,8 @@ under a minute (see `docs/runbook.md`).
 
 ### T3. Open redirect / CSRF / state replay in the OAuth legs
 - Every flow is keyed by a 256-bit random `state` stored **server-side** in the Durable Object with a
-  10-minute TTL and **single use**; nothing sensitive travels in URLs or cookies. — `src/do/token-vault.ts putFlow/takeFlow`, test `flow state is single-use`
+  10-minute TTL and **single use**; nothing sensitive travels in URLs or cookies. Expired states are
+  garbage-collected by the DO alarm. — `src/do/token-vault.ts putFlow/takeFlow/alarm`, tests `flow state is single-use`, `rejects a state older than FLOW_TTL_MS`, `garbage-collects expired states`
 - Flow *kind* is bound to the state so a `/callback` for one flow cannot complete another. — `takeFlow(kind)`
 - PKCE S256 on the Oura leg; PKCE enforced on the MCP leg by the provider. — `src/auth/handlers.ts`
 - `AuthorizationError` is rendered locally (400), never redirected. — test `no open redirect`
@@ -47,16 +49,22 @@ under a minute (see `docs/runbook.md`).
 ### T5. Durable Object storage or KV is exfiltrated
 - Token pair is encrypted with AES-256-GCM, fresh 96-bit IV, AAD bound to a version label; key is a
   Worker secret never written to storage. — `src/core/crypto.ts`, test `crypto`
-- Stored blob contains no plaintext token. — test `stores tokens encrypted at rest`
+- Stored blob contains no plaintext token, checked both on the core and on the real Durable Object storage. — tests `stores tokens encrypted at rest`, `stores no plaintext token in Durable Object storage`
 
 ### T6. SSRF / request smuggling to a different upstream
 - Oura and GitHub URLs are compile-time constants; only the resource name and allow-listed query
   parameters are variable. `next_token` and dates are validated against strict patterns. — `src/config.ts`, `src/core/validate.ts`, test `only ever calls the fixed Oura base URL`
-- `allowedHostnames` on the MCP handler pins the Host header. — `src/index.ts`
+- `allowedHostnames` on the MCP handler pins the Host header (DNS rebinding); a missing Host is refused,
+  and a browser Origin from another site gets 403 `Invalid Origin` even with a valid token. Note that
+  workers-oauth-provider reflects the request Origin in CORS headers on API responses; the MCP handler's
+  Origin check is the control, so nothing is served cross-site. Localhost-class Origins stay allowed for
+  MCP Inspector. — `src/index.ts`, test `serves a valid token only on the configured host`
 
 ### T7. Secrets or health data leak via logs
 - Logging goes through an allow-list of keys; strings are regex-redacted and truncated. No payloads
   or request bodies are ever passed to the logger. — `src/core/redact.ts`, test `redact`
+- End to end, a full connect → link → tool calls → refresh → upstream 401 → forged bearer → disconnect run
+  logs no token, refresh token, client secret, encryption key or authorization code. — test `logs nothing secret`
 - Upstream error bodies are never included in thrown errors. — tests `never leaks the body`
 
 ### T8. Dependency / supply-chain compromise
