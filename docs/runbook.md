@@ -6,7 +6,7 @@ Do these in order. Total time: under 5 minutes.
 
 1. **Stop everything**
    ```bash
-   wrangler deploy --var KILL_SWITCH:1
+   npx wrangler deploy --var KILL_SWITCH:1
    ```
    Every request now returns 503 before any handler runs. Verify: `curl -i https://<base>/healthz` → 503.
 
@@ -18,23 +18,29 @@ Do these in order. Total time: under 5 minutes.
 3. **Rotate every secret**
    ```bash
    npm run keygen                                  # new TOKEN_ENCRYPTION_KEY
-   wrangler secret put TOKEN_ENCRYPTION_KEY
-   wrangler secret put GITHUB_CLIENT_SECRET
-   wrangler secret put OURA_CLIENT_SECRET
+   npx wrangler secret put TOKEN_ENCRYPTION_KEY
+   npx wrangler secret put GITHUB_CLIENT_SECRET
+   npx wrangler secret put OURA_CLIENT_SECRET
    ```
-   Rotating `TOKEN_ENCRYPTION_KEY` makes the stored Oura token pair undecryptable, which is intended.
+   Rotating `TOKEN_ENCRYPTION_KEY` makes the stored Oura token pair undecryptable, which is intended: the
+   tools then report "Oura is not linked" until step 5 re-links.
 
 4. **Wipe grants and stored tokens**
+   `--remote` is required: without it wrangler v4 operates on the *local* simulator and production is untouched.
    ```bash
-   # MCP grants / clients / tokens
-   wrangler kv key list --binding OAUTH_KV | jq -r '.[].name' | xargs -I{} wrangler kv key delete --binding OAUTH_KV "{}"
+   # MCP grants / clients / tokens (bash / WSL / macOS)
+   npx wrangler kv key list --binding OAUTH_KV --remote | jq -r '.[].name' | xargs -I{} npx wrangler kv key delete --binding OAUTH_KV --remote "{}"
+   ```
+   ```powershell
+   # same, Windows PowerShell
+   npx wrangler kv key list --binding OAUTH_KV --remote | ConvertFrom-Json | ForEach-Object { npx wrangler kv key delete --binding OAUTH_KV --remote $_.name }
    ```
    The Oura vault is wiped by the key rotation above; to be explicit, open `https://<base>/oura/disconnect`
    after re-enabling (it requires a GitHub login).
 
 5. **Re-enable and re-link**
    ```bash
-   wrangler deploy --var KILL_SWITCH:0
+   npx wrangler deploy --var KILL_SWITCH:0
    ```
    Open `https://<base>/oura/connect`, log in with GitHub, approve at Oura.
    In Claude: *Settings → Connectors* → remove and re-add the connector.
@@ -62,6 +68,6 @@ Usually the refresh token was revoked at Oura or expired after a long outage.
 ## E. Decommission
 
 1. `KILL_SWITCH=1`, revoke at Oura and GitHub, roll the Cloudflare token.
-2. `wrangler delete` (removes the Worker and its Durable Object storage).
-3. `wrangler kv namespace delete --binding OAUTH_KV`.
+2. `npx wrangler delete` (removes the Worker and its Durable Object storage).
+3. `npx wrangler kv namespace delete --binding OAUTH_KV`.
 4. Delete the GitHub OAuth App and the Oura application.

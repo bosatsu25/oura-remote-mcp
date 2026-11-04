@@ -11,7 +11,7 @@ import { DurableObject } from "cloudflare:workers";
 import { FLOW_TTL_MS } from "../config";
 import { importAesKey } from "../core/crypto";
 import type { AsyncLock } from "../core/lock";
-import { TokenVaultCore, type KeyValueStore, type OuraTokenSet } from "../core/token-vault-core";
+import { TokenVaultCore, VaultError, type KeyValueStore, type OuraTokenSet, type VaultErrorCode } from "../core/token-vault-core";
 import type { Env } from "../env";
 
 export type FlowKind = "mcp_authorize" | "oura_link" | "oura_unlink";
@@ -27,6 +27,13 @@ export interface PendingFlow {
   userId?: number;
   login?: string;
 }
+
+/**
+ * Result of {@link OuraTokenVault.getAccessToken}. Workers RPC does not preserve custom error
+ * classes or their properties (a thrown VaultError arrives as a plain Error without `code`),
+ * so the vault reports its expected failures as data. Use {@link ouraAccessToken} from Worker code.
+ */
+export type AccessTokenResult = { ok: true; token: string } | { ok: false; code: VaultErrorCode };
 
 export class OuraTokenVault extends DurableObject<Env> {
   private corePromise: Promise<TokenVaultCore> | undefined;
@@ -52,11 +59,17 @@ export class OuraTokenVault extends DurableObject<Env> {
 
   // ---- Oura tokens ----
 
-  async getAccessToken(): Promise<string> {
-    return (await this.core()).getAccessToken({
-      clientId: this.env.OURA_CLIENT_ID,
-      clientSecret: this.env.OURA_CLIENT_SECRET,
-    });
+  async getAccessToken(): Promise<AccessTokenResult> {
+    try {
+      const token = await (await this.core()).getAccessToken({
+        clientId: this.env.OURA_CLIENT_ID,
+        clientSecret: this.env.OURA_CLIENT_SECRET,
+      });
+      return { ok: true, token };
+    } catch (err) {
+      if (err instanceof VaultError) return { ok: false, code: err.code };
+      throw err;
+    }
   }
 
   async storeTokens(tokens: Omit<OuraTokenSet, "linkedAt">): Promise<void> {
@@ -97,6 +110,13 @@ export class OuraTokenVault extends DurableObject<Env> {
     for (const [k, v] of entries) if (now - v.createdAt > FLOW_TTL_MS) expired.push(k);
     if (expired.length) await this.ctx.storage.delete(expired);
   }
+}
+
+/** Worker-side: a valid Oura access token, or a local VaultError carrying the vault's failure code. */
+export async function ouraAccessToken(env: Env): Promise<string> {
+  const result = await vault(env).getAccessToken();
+  if (result.ok) return result.token;
+  throw new VaultError(`Oura token unavailable (${result.code})`, result.code);
 }
 
 /** Accessor for the single vault instance. */

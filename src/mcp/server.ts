@@ -27,7 +27,7 @@ import {
 } from "../core/shape";
 import { VaultError } from "../core/token-vault-core";
 import { addDays, formatIsoDate, parseIsoDate, validateDateRange, ValidationError } from "../core/validate";
-import { vault } from "../do/token-vault";
+import { ouraAccessToken, vault } from "../do/token-vault";
 import type { Env, GrantProps } from "../env";
 
 type ToolResult = { content: Array<{ type: "text"; text: string }>; isError?: boolean };
@@ -109,7 +109,7 @@ export function createServer(env: Env): McpServer {
     async ({ start_date, end_date, include_all_periods }) =>
       guarded("get_sleep", env, async () => {
         const range = validateDateRange(start_date, end_date);
-        const accessToken = await vault(env).getAccessToken();
+        const accessToken = await ouraAccessToken(env);
         // Oura's /sleep treats end_date as exclusive; widen by one day so the last day is included.
         const endExclusive = formatIsoDate(addDays(parseIsoDate(range.end, "end_date"), 1));
         const { data, pages, truncated } = await fetchCollection<OuraSleepDoc>(
@@ -134,7 +134,7 @@ export function createServer(env: Env): McpServer {
     async ({ start_date, end_date }) =>
       guarded("get_sleep_scores", env, async () => {
         const range = validateDateRange(start_date, end_date);
-        const accessToken = await vault(env).getAccessToken();
+        const accessToken = await ouraAccessToken(env);
         const { data, pages, truncated } = await fetchCollection<OuraDailySleepDoc>(
           { fetchFn: fetch, accessToken },
           "daily_sleep",
@@ -155,7 +155,7 @@ export function createServer(env: Env): McpServer {
     async ({ start_date, end_date }) =>
       guarded("get_readiness", env, async () => {
         const range = validateDateRange(start_date, end_date);
-        const accessToken = await vault(env).getAccessToken();
+        const accessToken = await ouraAccessToken(env);
         const { data, pages, truncated } = await fetchCollection<OuraDailyReadinessDoc>(
           { fetchFn: fetch, accessToken },
           "daily_readiness",
@@ -176,7 +176,7 @@ export function createServer(env: Env): McpServer {
     async ({ start_date, end_date }) =>
       guarded("get_heart_rate", env, async () => {
         const range = validateDateRange(start_date, end_date, { maxDays: MAX_HEARTRATE_RANGE_DAYS });
-        const accessToken = await vault(env).getAccessToken();
+        const accessToken = await ouraAccessToken(env);
         const endExclusive = formatIsoDate(addDays(parseIsoDate(range.end, "end_date"), 1));
         const { data, pages, truncated } = await fetchCollection<OuraHeartRateSample>(
           { fetchFn: fetch, accessToken },

@@ -46,10 +46,12 @@ export interface VaultDeps {
 const TOKEN_KEY = "oura:tokens:v1";
 const AAD = "oura-remote-mcp:token-vault:v1";
 
+export type VaultErrorCode = "not_linked" | "refresh_failed" | "upstream";
+
 export class VaultError extends Error {
   constructor(
     message: string,
-    readonly code: "not_linked" | "refresh_failed" | "upstream",
+    readonly code: VaultErrorCode,
   ) {
     super(message);
     this.name = "VaultError";
@@ -74,7 +76,14 @@ export class TokenVaultCore {
   private async read(): Promise<OuraTokenSet | undefined> {
     const box = await this.deps.store.get<SealedBox>(TOKEN_KEY);
     if (!box) return undefined;
-    return JSON.parse(await open(this.deps.key, box, AAD)) as OuraTokenSet;
+    try {
+      return JSON.parse(await open(this.deps.key, box, AAD)) as OuraTokenSet;
+    } catch {
+      // Wrong key (TOKEN_ENCRYPTION_KEY rotated, see docs/runbook.md) or a tampered blob.
+      // Either way the pair is unusable: report "not linked" so the owner is told to re-link,
+      // and the next store() overwrites it.
+      return undefined;
+    }
   }
 
   private async write(tokens: OuraTokenSet): Promise<void> {

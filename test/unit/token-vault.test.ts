@@ -78,6 +78,21 @@ describe("TokenVaultCore", () => {
     assert.equal(s.scope, "daily");
   });
 
+  it("treats a pair encrypted under another key as not linked, and a re-link recovers", async () => {
+    const t = 1_000_000;
+    const store = memoryStore();
+    const oldVault = new TokenVaultCore({ store, lock: createPromiseLock(), key: await importAesKey(KEY), fetchFn: fakeOura().fetchFn, now: () => t });
+    await oldVault.store({ accessToken: "AT-old", refreshToken: "RT-old", expiresAt: t + 10_000_000, scope: "daily" });
+
+    const rotatedKey = await importAesKey(Buffer.alloc(32, 9).toString("base64"));
+    const vault = new TokenVaultCore({ store, lock: createPromiseLock(), key: rotatedKey, fetchFn: fakeOura().fetchFn, now: () => t });
+    assert.deepEqual(await vault.status(), { linked: false });
+    await assert.rejects(vault.getAccessToken({ clientId: "c", clientSecret: "s" }), (e: unknown) => e instanceof VaultError && e.code === "not_linked");
+
+    await vault.store({ accessToken: "AT-new", refreshToken: "RT-new", expiresAt: t + 10_000_000, scope: "daily" });
+    assert.equal(await vault.getAccessToken({ clientId: "c", clientSecret: "s" }), "AT-new");
+  });
+
   it("throws not_linked when empty", async () => {
     const { vault } = await makeVault(fakeOura(), () => 0);
     await assert.rejects(vault.getAccessToken({ clientId: "c", clientSecret: "s" }), (e: unknown) => e instanceof VaultError && e.code === "not_linked");
