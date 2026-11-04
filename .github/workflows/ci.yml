@@ -61,13 +61,15 @@ jobs:
   codeql:
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    # Code scanning is not enabled for this private repository, so results are not
-    # uploaded. Instead the job fails on any finding and prints each as an annotation.
+    # Results are uploaded to code scanning, so alerts open and close in the Security tab
+    # (an alert only closes when a later upload no longer contains it). The job also
+    # fails on any finding and prints each as an annotation, so CI blocks it either way.
     permissions:
       contents: read
       # Required by codeql-action in private repositories (reads the workflow run).
       actions: read
-      security-events: read
+      # Upload SARIF to code scanning.
+      security-events: write
     env:
       # On pull_request events codeql-action otherwise reports only alerts on changed
       # lines ("diff-informed queries"), so a finding in untouched code passes the PR
@@ -82,7 +84,6 @@ jobs:
           languages: javascript-typescript
       - uses: github/codeql-action/analyze@v3
         with:
-          upload: never
           output: codeql-results
       - name: Fail on CodeQL findings
         run: |
