@@ -5,7 +5,7 @@
   "description": "Personal, single-user remote MCP server that exposes read-only Oura Ring sleep/readiness/heart-rate data to Claude. Not affiliated with Oura.",
   "type": "module",
   "engines": {
-    "node": ">=22"
+    "node": "^22.18.0 || ^24.11.0 || >=26.0.0"
   },
   "scripts": {
     "dev": "wrangler dev",
