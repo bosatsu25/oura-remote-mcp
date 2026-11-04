@@ -92,3 +92,7 @@ empty (Claude registers itself). Approve the GitHub login. On mobile the connect
 
 ## License
 Private. All rights reserved.
+
+## Dependency notes
+- `agents` requires `@modelcontextprotocol/client` as a **non-optional** peer even for server-only use; it is pinned to the exact version `agents` expects, together with `@modelcontextprotocol/server`.
+- `@cloudflare/vitest-pool-workers` pins its own `wrangler`/`miniflare`; keep root `wrangler` at the same major and let Dependabot's `cloudflare` group bump them together.
