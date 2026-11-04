@@ -57,6 +57,11 @@ jobs:
       # Required by codeql-action in private repositories (reads the workflow run).
       actions: read
       security-events: read
+    env:
+      # On pull_request events codeql-action otherwise reports only alerts on changed
+      # lines ("diff-informed queries"), so a finding in untouched code passes the PR
+      # and first fails on main. The codebase is small: analyse all of it every time.
+      CODEQL_ACTION_DIFF_INFORMED_QUERIES: "false"
     steps:
       - uses: actions/checkout@v7
         with:
