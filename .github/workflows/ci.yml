@@ -34,6 +34,10 @@ jobs:
   secrets-scan:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    permissions:
+      contents: read
+      # gitleaks-action lists the PR's commits via the API on pull_request events.
+      pull-requests: read
     steps:
       - uses: actions/checkout@v4
         with:
@@ -48,6 +52,8 @@ jobs:
     timeout-minutes: 20
     permissions:
       contents: read
+      # Required by codeql-action in private repositories (reads the workflow run).
+      actions: read
       security-events: write
     steps:
       - uses: actions/checkout@v4
