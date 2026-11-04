@@ -16,6 +16,7 @@ import { createMcpHandler } from "agents/mcp/server";
 import { handleDefault } from "./auth/handlers";
 import { MCP_SCOPE_READ } from "./config";
 import { sha256Hex } from "./core/crypto";
+import { stripTrailingSlashes } from "./core/url";
 import { log } from "./core/redact";
 import type { Env } from "./env";
 import { createServer } from "./mcp/server";
@@ -23,7 +24,7 @@ import { createServer } from "./mcp/server";
 export { OuraTokenVault } from "./do/token-vault";
 
 function buildProvider(env: Env) {
-  const base = env.PUBLIC_BASE_URL.replace(/\/+$/, "");
+  const base = stripTrailingSlashes(env.PUBLIC_BASE_URL);
   const resource = `${base}/mcp`;
 
   const mcp = createMcpHandler(() => createServer(env), {
