@@ -1,0 +1,34 @@
+{
+  "name": "oura-remote-mcp",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Personal, single-user remote MCP server that exposes read-only Oura Ring sleep/readiness/heart-rate data to Claude. Not affiliated with Oura.",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "typecheck": "tsc --noEmit",
+    "test": "npm run test:unit && npm run test:workers",
+    "test:unit": "node --import tsx --test \"test/unit/**/*.test.ts\"",
+    "test:workers": "vitest run --config vitest.config.ts",
+    "lint:secrets": "gitleaks detect --source . --no-banner",
+    "keygen": "node -e \"console.log(require('node:crypto').randomBytes(32).toString('base64'))\""
+  },
+  "dependencies": {
+    "@cloudflare/workers-oauth-provider": "^0.10.3",
+    "@modelcontextprotocol/server": "^2.0.0",
+    "agents": "^0.28.0",
+    "zod": "^4.0.0"
+  },
+  "devDependencies": {
+    "@cloudflare/vitest-pool-workers": "^0.8.0",
+    "@cloudflare/workers-types": "^4.20250620.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.9.0",
+    "vitest": "^3.2.0",
+    "wrangler": "^4.20.0"
+  }
+}

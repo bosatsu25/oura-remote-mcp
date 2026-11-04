@@ -1,0 +1,48 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "oura-remote-mcp",
+  "main": "src/index.ts",
+  "compatibility_date": "2025-06-20",
+  "compatibility_flags": ["nodejs_compat"],
+
+  // Observability: logs are structured and redacted by src/core/redact.ts.
+  // Never enable request-body logging here.
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1
+  },
+
+  // Non-secret configuration. Secrets go through `wrangler secret put` (see README).
+  "vars": {
+    // Canonical public URL of this Worker, without trailing slash.
+    // Used for OAuth redirect URIs and the RFC 8707 resource identifier.
+    "PUBLIC_BASE_URL": "https://oura-remote-mcp.<your-subdomain>.workers.dev",
+    // Only this GitHub account may authorize Claude or link Oura.
+    // The numeric id is immutable; the login is checked as a second factor.
+    "ALLOWED_GITHUB_USER_ID": "0",
+    "ALLOWED_GITHUB_LOGIN": "bosatsu25",
+    // Set to "1" to reject every request (incident kill switch). See docs/runbook.md.
+    "KILL_SWITCH": "0"
+  },
+
+  // workers-oauth-provider stores client registrations, grants and hashed tokens here.
+  "kv_namespaces": [
+    { "binding": "OAUTH_KV", "id": "<create with: wrangler kv namespace create OAUTH_KV>" }
+  ],
+
+  // Single Durable Object instance that holds the encrypted Oura tokens and
+  // serializes refresh-token rotation (Oura refresh tokens are single-use).
+  "durable_objects": {
+    "bindings": [{ "name": "TOKEN_VAULT", "class_name": "OuraTokenVault" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["OuraTokenVault"] }],
+
+  // Per-IP rate limit for the public endpoints (register/token/mcp/authorize).
+  "ratelimits": [
+    {
+      "name": "RATE_LIMITER",
+      "namespace_id": "1001",
+      "simple": { "limit": 60, "period": 60 }
+    }
+  ]
+}
