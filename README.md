@@ -1,5 +1,7 @@
 # oura-remote-mcp
 
+English | [日本語](README.ja.md)
+
 **Personal, single-user, read-only remote MCP server** that lets Claude (claude.ai, mobile, desktop,
 Claude Code) read sleep, readiness and heart-rate data from an Oura Ring via the official Oura API v2.
 
@@ -92,6 +94,7 @@ empty (Claude registers itself). Approve the GitHub login. On mobile the connect
 ## Operations
 - Kill switch, rotation, incident steps: [docs/runbook.md](docs/runbook.md)
 - Threat model and controls: [SECURITY.md](SECURITY.md)
+- Current state and plan: [docs/roadmap.md](docs/roadmap.md) (Japanese)
 - Local dev: copy `.dev.vars.example` → `.dev.vars` and fill it in (it sets `PUBLIC_BASE_URL=http://localhost:8787`
   and needs a *separate* GitHub OAuth App whose callback is `http://localhost:8787/callback`), then `npm run dev`.
   Test with Claude Code (`claude mcp add --transport http oura http://localhost:8787/mcp`) or `npx mcp-remote`.
